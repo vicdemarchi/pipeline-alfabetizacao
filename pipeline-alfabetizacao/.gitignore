@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Credenciais e segredos
+.env
+*.key
+*.pem
+credentials*.json
+service-account*.json
+
+# Arquivos temporários do streaming
+eventos_streaming.jsonl
+municipios.txt
+
+# Sistema
+.DS_Store
+Thumbs.db
