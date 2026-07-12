@@ -1,4 +1,4 @@
-# Checklist de Entrega
+# Checklist de entrega
 
 ## Implementação técnica
 
@@ -15,25 +15,20 @@
 
 ## Repositório
 
-- [x] Estrutura inicial criada
+- [x] Estrutura organizada
 - [x] Código publicado no GitHub
-- [x] Branch de documentação criada
-- [ ] Pull Request criado
-- [ ] Pull Request revisado e integrado à branch main
-
-## Documentação
-
-- [x] README inicial
-- [x] Diagrama em Mermaid
-- [x] Roteiro inicial do vídeo
-- [ ] Inserir evidências principais
-- [ ] Revisar limitações, FinOps e aplicação em IA
-- [ ] Conferir instruções de execução
+- [x] Branches criadas
+- [x] Pull Requests criados e integrados à `main`
+- [x] Evidências adicionadas
+- [x] README final consolidado
+- [x] Trade-offs documentados
+- [x] Estimativa de custos documentada
+- [x] Micro-batch reproduzível documentado
 
 ## Entrega final
 
-- [ ] Gerar link final do repositório
 - [ ] Gravar vídeo executivo de até 5 minutos
-- [ ] Conferir se o avaliador consegue acessar o repositório
-- [ ] Revisar todos os critérios do enunciado
-- [ ] Entregar na plataforma da pós-graduação
+- [ ] Conferir o vídeo depois da gravação
+- [ ] Confirmar acesso público ao repositório
+- [ ] Copiar o link final do repositório
+- [ ] Entregar repositório e vídeo na plataforma da pós-graduação

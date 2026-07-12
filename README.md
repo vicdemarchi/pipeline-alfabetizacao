@@ -64,6 +64,7 @@ pipeline-alfabetizacao/
 ├── docs/
 │   ├── arquitetura.md
 │   ├── checklist_entrega.md
+│   ├── decisoes_arquiteturais_e_custos.md
 │   ├── plano_git.md
 │   └── roteiro_video.md
 ├── evidencias/
@@ -76,6 +77,9 @@ pipeline-alfabetizacao/
 │   └── streaming/
 └── src/
     └── streaming/
+        ├── gerar_eventos.py
+        ├── executar_microbatch.sh
+        └── README.md
 ```
 
 ## 5. Fontes de dados
@@ -267,7 +271,61 @@ Práticas aplicadas:
 - acompanhamento de bytes processados;
 - preferência por serviços gerenciados e arquitetura simples.
 
-## 13. Governança e rastreabilidade
+## 13. Decisões arquiteturais e trade-offs
+
+### Justificativa das ferramentas
+
+- **BigQuery:** escolhido por ser um serviço analítico totalmente gerenciado e sem servidor, com SQL, separação entre armazenamento e processamento e integração direta com conjuntos de dados públicos.
+- **Python:** utilizado para gerar os eventos simulados com a biblioteca padrão, evitando dependências externas.
+- **Cloud Shell:** utilizado por já disponibilizar `gcloud`, `bq` e Python em um ambiente integrado ao projeto.
+- **GitHub:** utilizado para versionamento, organização do código, branches, Pull Requests e rastreabilidade da evolução do projeto.
+
+### Batch × streaming
+
+O **batch** foi escolhido para a carga histórica porque os dados oficiais analisados são publicados em grandes conjuntos e não exigem atualização segundo a segundo. Essa abordagem reduz complexidade e facilita reprocessamentos completos.
+
+A ingestão em tempo quase real foi demonstrada por **micro-batches**, pois o BigQuery Sandbox não foi configurado com faturamento para uma arquitetura contínua. Em produção, eventos com baixa transformação poderiam seguir por Pub/Sub diretamente para uma assinatura do BigQuery. Para transformações complexas, janelas e processamento contínuo, Dataflow seria uma alternativa, com maior custo operacional.
+
+### Data lake × data warehouse
+
+A solução adotou uma arquitetura **centrada no BigQuery**, com funções de data warehouse e organização Medalhão. A Bronze preserva os dados com metadados de origem, mas não representa um data lake separado em armazenamento de objetos.
+
+Essa decisão simplifica a implementação e a consulta SQL. Em uma arquitetura de maior escala, arquivos brutos imutáveis poderiam ser mantidos no Cloud Storage como data lake, enquanto a Silver e a Gold permaneceriam no BigQuery para consumo analítico.
+
+### Custo × desempenho
+
+- Particionamento e clustering reduzem a leitura desnecessária em tabelas maiores, mas foram evitados em tabelas pequenas, nas quais aumentariam a complexidade sem benefício relevante.
+- Seleção explícita de colunas reduz bytes processados.
+- Serviços totalmente gerenciados diminuem esforço operacional, embora o custo cresça com armazenamento, volume consultado e processamento contínuo.
+- A simulação por micro-batches reduz custo no protótipo, mas não oferece as mesmas garantias de baixa latência de um streaming nativo.
+
+A análise detalhada está em [`docs/decisoes_arquiteturais_e_custos.md`](docs/decisoes_arquiteturais_e_custos.md).
+
+## 14. Estimativa de custos
+
+### Protótipo executado
+
+O protótipo foi desenvolvido no **BigQuery Sandbox**, sem conta de faturamento vinculada. Portanto, o custo financeiro observado para a implementação foi **US$ 0**.
+
+### Cenário de produção de baixo volume
+
+Hipóteses mensais:
+
+- armazenamento lógico abaixo de 10 GiB;
+- consultas abaixo de 1 TiB processado;
+- 1 GiB de eventos enviados por Pub/Sub para uma assinatura do BigQuery;
+- ausência de Dataflow contínuo.
+
+Estimativa:
+
+- armazenamento e consultas do BigQuery: **US$ 0**, permanecendo dentro das franquias gratuitas;
+- publicação básica no Pub/Sub: **US$ 0**, abaixo de 10 GiB;
+- assinatura do Pub/Sub para BigQuery: aproximadamente **US$ 0,05 por mês**, calculada por `US$ 50/TiB × 1 GiB ÷ 1.024`;
+- total estimado: **cerca de US$ 0,05 por mês**, sem impostos, câmbio, tráfego entre regiões ou serviços adicionais.
+
+Essa é uma estimativa de referência, não uma cotação. Em produção, o valor deve ser recalculado na calculadora oficial do Google Cloud de acordo com região, volume, retenção e frequência de consultas.
+
+## 15. Governança e rastreabilidade
 
 A solução mantém:
 
@@ -280,7 +338,7 @@ A solução mantém:
 - branches e Pull Requests no GitHub;
 - evidências de execução e validação.
 
-## 14. Aplicações futuras em IA
+## 16. Aplicações futuras em IA
 
 A camada Gold pode apoiar:
 
@@ -292,7 +350,7 @@ A camada Gold pode apoiar:
 - priorização de políticas públicas;
 - recomendação de ações de intervenção.
 
-## 15. Limitações
+## 17. Limitações
 
 - o streaming foi simulado por micro-batches;
 - não foram integradas fontes externas opcionais;
@@ -301,7 +359,7 @@ A camada Gold pode apoiar:
 - significados não documentados não foram inferidos;
 - a solução foi implementada no BigQuery Sandbox.
 
-## 16. Evidências
+## 18. Evidências
 
 ### Validação da Bronze
 
@@ -327,7 +385,9 @@ A camada Gold pode apoiar:
 
 ![Monitoramento](evidencias/06_monitoramento_pipeline.png)
 
-## 17. Execução
+## 19. Execução
+
+### Pipeline batch
 
 Ordem recomendada:
 
@@ -335,11 +395,30 @@ Ordem recomendada:
 2. executar os scripts em `sql/silver`;
 3. executar os scripts em `sql/gold`;
 4. executar os scripts em `sql/quality`;
-5. executar o simulador em `src/streaming`;
-6. executar os scripts em `sql/streaming`;
-7. executar `sql/monitoring/monitoramento_pipeline.sql`.
+5. executar `sql/monitoring/monitoramento_pipeline.sql`.
 
-## 18. Tecnologias
+### Reprodução do micro-batch
+
+Pré-requisitos:
+
+- Google Cloud Shell;
+- projeto `tech-alfabetizacao-vdemarchi`;
+- tabela `bronze.eventos_streaming` já criada pelo script `sql/streaming/create_streaming_tables.sql`.
+
+No Cloud Shell:
+
+```bash
+git clone https://github.com/vicdemarchi/pipeline-alfabetizacao.git
+cd pipeline-alfabetizacao
+chmod +x src/streaming/executar_microbatch.sh
+./src/streaming/executar_microbatch.sh
+```
+
+O script seleciona cinco municípios existentes, gera um arquivo JSONL, anexa os eventos à Bronze e executa uma consulta de validação. Em seguida, execute novamente `sql/streaming/create_streaming_tables.sql` para atualizar Silver e Gold.
+
+Mais detalhes em [`src/streaming/README.md`](src/streaming/README.md).
+
+## 20. Tecnologias
 
 - Google Cloud;
 - BigQuery;
